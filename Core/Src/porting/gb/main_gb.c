@@ -26,10 +26,11 @@
 #define AUDIO_BUFFER_LENGTH_GB (AUDIO_SAMPLE_RATE / 60)
 #define AUDIO_BUFFER_LENGTH_DMA_GB ((2 * AUDIO_SAMPLE_RATE) / 60)
 
-// #define blit screen_blit
-// #define blit screen_blit_bilinear
+#define blit screen_blit //1:1 para gameboy
+//#define blit screen_blit_bilinear
 // #define blit screen_blit_jth
 // #define blit screen_blit_v3to5
+//#define blit screen_blit_bilinear_1_1 //1:1 para gameboy con filtrado bilineal
 
 #ifndef blit
 #define blit screen_blit_v3to5
@@ -92,6 +93,7 @@ static inline void screen_blit(void) {
     int w2 = 266;
     int h2 = 240;
 
+
     int x_ratio = (int)((w1<<16)/w2) +1;
     int y_ratio = (int)((h1<<16)/h2) +1;
     int hpad = 27;
@@ -143,6 +145,8 @@ static void screen_blit_bilinear(void) {
 
     int w2 = 320;
     int h2 = 216;
+    // int w2 = 266;
+    // int h2 = 240;
 
     int hpad = 0;
     uint16_t *dest = lcd_get_active_buffer();
@@ -173,6 +177,67 @@ static void screen_blit_bilinear(void) {
     imlib_draw_image(&dst_img, &src_img, hpad, 0, x_scale, y_scale, NULL, -1, 255, NULL,
                      NULL, IMAGE_HINT_BILINEAR, NULL, NULL);
 
+    PROFILING_END(t_blit);
+
+#ifdef PROFILING_ENABLED
+    printf("Blit: %d us\n", (1000000 * PROFILING_DIFF(t_blit)) / t_blit_t0.SecondFraction);
+#endif
+
+    lcd_swap();
+}
+
+static void screen_blit_bilinear_1_1(void) {
+    static uint32_t lastFPSTime = 0;
+    static uint32_t frames = 0;
+    uint32_t currentTime = HAL_GetTick();
+    uint32_t delta = currentTime - lastFPSTime;
+
+    frames++;
+
+    if (delta >= 1000) {
+        int fps = (10000 * frames) / delta;
+        printf("FPS: %d.%d, frames %ld, delta %ld ms, skipped %ld\n", fps / 10, fps % 10, delta, frames, skippedFrames);
+        frames = 0;
+        skippedFrames = 0;
+        lastFPSTime = currentTime;
+    }
+
+    int w1 = currentUpdate->width; //160
+    int h1 = currentUpdate->height;//144
+
+    int w2 = 266;
+    int h2 = 240;
+
+    int hpad = 0;
+    uint16_t *dest = lcd_get_active_buffer();
+
+    image_t dst_img;
+    dst_img.w = 320;
+    dst_img.h = 240;
+    dst_img.bpp = 2;
+    dst_img.pixels = (uint8_t *) dest+ 27*2; //27*2 para centrar la pantalla escalada.
+
+
+    image_t src_img;
+    src_img.w = currentUpdate->width;//160
+    src_img.h = currentUpdate->height;//144
+    src_img.bpp = 2;
+    src_img.pixels = currentUpdate->buffer;
+
+    float x_scale = ((float) w2) / ((float) w1); //1.66 relación aspecto
+    float y_scale = ((float) h2) / ((float) h1); //1.66 relación aspecto
+
+
+
+
+    PROFILING_INIT(t_blit);
+    PROFILING_START(t_blit);
+
+    imlib_draw_image(&dst_img, &src_img, hpad, 0, x_scale, y_scale, NULL, -1, 255, NULL,
+                     NULL, IMAGE_HINT_BILINEAR, NULL, NULL);
+//image_t *dst_img, image_t *src_img, int dst_x_start, int dst_y_start, float x_scale, float y_scale, rectangle_t *roi,
+//                      int rgb_channel, int alpha, const uint16_t *color_palette, const uint8_t *alpha_palette, image_hint_t hint,
+//                      imlib_draw_row_callback_t callback, void *dst_row_override
     PROFILING_END(t_blit);
 
 #ifdef PROFILING_ENABLED
