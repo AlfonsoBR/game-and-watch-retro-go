@@ -1,3 +1,6 @@
+Added: do....sh scripts.
+Doing: GB/GBC 1.6 aspect ratio & bilinear filtering.
+
 # Emulator collection for Nintendo® Game & Watch™
 
 This is a very quick and dirty port of the [retro-go](https://github.com/ducalex/retro-go) emulator collection that is intended to run on the Nintendo® Game & Watch™ 2020 edition.
